@@ -58,9 +58,11 @@
     #shield-status.active { border-color:rgba(99,221,255,.55); color:#dff9ff; }
     #retry-status { display:none; border-color:rgba(255,159,87,.5); }
     #retry-status.active { display:block; }
-    #pause-btn { position:absolute; z-index:12; top:103px; right:18px; min-width:104px; min-height:44px; padding:9px 15px; pointer-events:auto; border-radius:12px; border:1px solid rgba(99,221,255,.52); background:rgba(4,16,37,.94); color:#e8f8ff; font-size:12px; font-weight:950; letter-spacing:.08em; cursor:pointer; box-shadow:0 7px 22px rgba(0,0,0,.32); }
+    #pause-btn,#sound-btn { position:absolute; z-index:12; top:103px; min-width:104px; min-height:44px; padding:9px 15px; pointer-events:auto; border-radius:12px; border:1px solid rgba(99,221,255,.52); background:rgba(4,16,37,.94); color:#e8f8ff; font-size:12px; font-weight:950; letter-spacing:.08em; cursor:pointer; box-shadow:0 7px 22px rgba(0,0,0,.32); }
+    #pause-btn { right:18px; }
+    #sound-btn { right:132px; }
     #pause-btn[hidden] { display:none; }
-    #pause-btn:hover,#pause-btn:focus-visible { border-color:var(--gold); color:var(--gold); outline:none; }
+    #pause-btn:hover,#pause-btn:focus-visible,#sound-btn:hover,#sound-btn:focus-visible { border-color:var(--gold); color:var(--gold); outline:none; }
     #pause-banner { position:absolute; z-index:11; inset:0; display:grid; place-items:center; background:rgba(1,7,20,.48); backdrop-filter:blur(3px); }
     #pause-banner[hidden] { display:none; }
     #pause-banner span { padding:18px 27px; border-radius:17px; border:2px solid rgba(255,212,95,.72); background:rgba(4,16,37,.96); color:var(--gold); font-size:26px; font-weight:950; letter-spacing:.12em; box-shadow:0 18px 55px rgba(0,0,0,.5); }
@@ -145,6 +147,7 @@
       #status-stack{display:none}
       #mission{bottom:170px;width:min(380px,56vw)}
       #pause-btn{top:84px;right:9px;min-width:88px}
+      #sound-btn{top:84px;right:106px;min-width:88px}
       .top{left:9px;right:9px;top:8px;gap:7px}
       .player-card{width:40%}.boss-card{max-width:none}
       .card{padding:8px 9px}.line{font-size:10px}.sub{font-size:9px}
@@ -196,6 +199,7 @@
     </div>
   </div>
   <button id="pause-btn" type="button" aria-pressed="false" hidden>PAUSE</button>
+  <button id="sound-btn" type="button" aria-pressed="true">SOUND ON</button>
   <div id="pause-banner" hidden role="status"><span>GAME PAUSED</span></div>
 
   <div id="touch" aria-hidden="true">
@@ -4968,7 +4972,7 @@ window.REVIEWER_QUESTION_META = {
     start:$('start-overlay'), question:$('question-overlay'), end:$('end-overlay'), mission:$('mission'),
     qGate:$('q-gate'), qDifficulty:$('q-difficulty'), qTime:$('q-time'), timerFill:$('timer-fill'), qText:$('q-text'), qSource:$('q-source'),
     answers:$('answers'), identificationForm:$('identification-form'), identificationInput:$('identification-input'), identificationSubmit:$('identification-submit'),
-    feedback:$('q-feedback'), superBtn:$('super-btn'), subjectSelect:$('subject-select'), subjectOptions:$('subject-options'), subjectStatus:$('subject-selection-status'), pauseBtn:$('pause-btn'), pauseBanner:$('pause-banner'),
+    feedback:$('q-feedback'), superBtn:$('super-btn'), subjectSelect:$('subject-select'), subjectOptions:$('subject-options'), subjectStatus:$('subject-selection-status'), pauseBtn:$('pause-btn'), pauseBanner:$('pause-banner'), soundBtn:$('sound-btn'),
     endKicker:$('end-kicker'), endTitle:$('end-title'), endText:$('end-text')
   };
 
@@ -5070,30 +5074,78 @@ window.REVIEWER_QUESTION_META = {
 
   for(let i=0;i<CONFIG.gates;i++){ const e=document.createElement('div');e.className='gate';ui.gateTrack.appendChild(e); }
   const reviewerSubjects=[...new Set(flattenQuestionBank(QUESTION_BANK).map(q=>q.subject).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
-  ['ALL',...reviewerSubjects].forEach(subject=>{const button=document.createElement('button');button.type='button';button.className='subject-option';button.textContent=subject==='ALL'?'All subjects':subject;button.dataset.subject=subject;button.setAttribute('aria-pressed',String(subject==='ALL'));button.addEventListener('click',()=>{const profile=bossProfile(subject);ui.subjectSelect.value=subject;ui.bossName.textContent=profile.name;[...ui.subjectOptions.children].forEach(item=>item.setAttribute('aria-pressed',String(item===button)));ui.subjectStatus.textContent=`Selected: ${subject==='ALL'?'All reviewer subjects':subject} · Boss: ${profile.name}`;});ui.subjectOptions.appendChild(button);});
+  ['ALL',...reviewerSubjects].forEach(subject=>{const button=document.createElement('button');button.type='button';button.className='subject-option';button.textContent=subject==='ALL'?'All subjects':subject;button.dataset.subject=subject;button.setAttribute('aria-pressed',String(subject==='ALL'));button.addEventListener('click',()=>{const profile=bossProfile(subject);ui.subjectSelect.value=subject;ui.bossName.textContent=profile.name;[...ui.subjectOptions.children].forEach(item=>item.setAttribute('aria-pressed',String(item===button)));ui.subjectStatus.textContent=`Selected: ${subject==='ALL'?'All reviewer subjects':subject} · Boss: ${profile.name}`;sound.scene('select',subject);});ui.subjectOptions.appendChild(button);});
 
   const game={
     state:'start', running:false, paused:false, subject:'ALL', t:0, last:performance.now(), keys:new Set(), arena:{left:62,right:1218,top:118,bottom:664},
     gate:0, gatePending:false, retryTimer:0, question:null, questionTime:0, questionLimit:0, questionUsed:new Set(),
-    promptCount:0, answered:false, wrongAttempts:0, questionOutcome:null, messageTimer:0, shake:0, stageBanner:0, stageText:'',
+    promptCount:0, answered:false, wrongAttempts:0, questionOutcome:null, lastTimerSecond:-1, messageTimer:0, shake:0, stageBanner:0, stageText:'',
     bullets:[], enemy:[], particles:[], rings:[], texts:[], lasers:[], walls:[], superFx:null,
     debugInvincible:false, demoSpeed:1
   };
   const player={x:235,y:390,vx:0,vy:0,r:21,maxHp:CONFIG.playerMaxHp,hp:CONFIG.playerMaxHp,angle:0,lastX:1,lastY:0,walk:0,attackCd:0,dashCd:0,invuln:0,shield:0,attackFlash:0,trail:[]};
   const boss={x:1010,y:370,vx:0,vy:0,r:64,maxHp:CONFIG.bossMaxHp,hp:CONFIG.bossMaxHp,angle:Math.PI,anim:0,hit:0,stun:0,aimTimer:1.2,burstTimer:3.8,laserTimer:7.2,wallTimer:9.5,chargeTimer:6.5,chargeState:null,spiralAngle:0};
 
+  const AUDIO_PALETTES=Object.freeze({
+    ALL:{root:55,wave:'triangle',scale:[0,3,5,7,10,12]},
+    Mathematics:{root:65.41,wave:'square',scale:[0,2,4,7,9,12]},
+    Science:{root:49,wave:'sawtooth',scale:[0,3,5,7,8,12]},
+    English:{root:58.27,wave:'triangle',scale:[0,2,5,7,10,12]},
+    Computer:{root:43.65,wave:'square',scale:[0,1,5,6,10,12]},
+    'Christian Living':{root:61.74,wave:'sine',scale:[0,4,5,7,11,12]},
+    'Araling Panlipunan':{root:46.25,wave:'sawtooth',scale:[0,3,5,7,10,12]},
+    Filipino:{root:69.3,wave:'triangle',scale:[0,2,3,7,9,12]},
+    MAPEH:{root:73.42,wave:'square',scale:[0,3,5,7,10,12]}
+  });
+  const sound=(()=>{
+    let audio=null,master=null,musicBus=null,sfxBus=null,noiseBuffer=null,musicTimer=0,musicStep=0,enabled=true;
+    const palette=subject=>AUDIO_PALETTES[subject||game.subject]||AUDIO_PALETTES.ALL;
+    const hz=(root,semitones)=>root*Math.pow(2,semitones/12);
+    function updateButton(){ui.soundBtn.textContent=enabled?'SOUND ON':'SOUND OFF';ui.soundBtn.setAttribute('aria-pressed',String(enabled));}
+    function ensure(){
+      if(audio)return true;
+      const AudioContext=window.AudioContext||window.webkitAudioContext;
+      if(!AudioContext){enabled=false;ui.soundBtn.textContent='SOUND N/A';ui.soundBtn.disabled=true;return false;}
+      audio=new AudioContext();master=audio.createGain();musicBus=audio.createGain();sfxBus=audio.createGain();const compressor=audio.createDynamicsCompressor();
+      master.gain.value=.78;musicBus.gain.value=.16;sfxBus.gain.value=.72;musicBus.connect(master);sfxBus.connect(master);master.connect(compressor);compressor.connect(audio.destination);
+      noiseBuffer=audio.createBuffer(1,audio.sampleRate,audio.sampleRate);const data=noiseBuffer.getChannelData(0);for(let i=0;i<data.length;i++)data[i]=Math.random()*2-1;
+      return true;
+    }
+    function tone(freq,duration=.12,volume=.12,type='sine',delay=0,slide=1,bus=sfxBus){
+      if(!enabled||!ensure())return;const at=audio.currentTime+Math.max(0,delay),osc=audio.createOscillator(),gain=audio.createGain();osc.type=type;osc.frequency.setValueAtTime(Math.max(20,freq),at);osc.frequency.exponentialRampToValueAtTime(Math.max(20,freq*slide),at+duration);gain.gain.setValueAtTime(.0001,at);gain.gain.exponentialRampToValueAtTime(Math.max(.0002,volume),at+.012);gain.gain.exponentialRampToValueAtTime(.0001,at+duration);osc.connect(gain);gain.connect(bus||sfxBus);osc.start(at);osc.stop(at+duration+.02);
+    }
+    function noise(duration=.12,volume=.12,frequency=900,delay=0){
+      if(!enabled||!ensure())return;const at=audio.currentTime+Math.max(0,delay),source=audio.createBufferSource(),filter=audio.createBiquadFilter(),gain=audio.createGain();source.buffer=noiseBuffer;filter.type='bandpass';filter.frequency.value=frequency;filter.Q.value=.8;gain.gain.setValueAtTime(Math.max(.0002,volume),at);gain.gain.exponentialRampToValueAtTime(.0001,at+duration);source.connect(filter);filter.connect(gain);gain.connect(sfxBus);source.start(at);source.stop(at+duration+.02);
+    }
+    function chord(root,steps,duration=.3,volume=.07,type='triangle',delay=0){steps.forEach((step,i)=>tone(hz(root,step),duration,volume/Math.max(1,steps.length*.55),type,delay+i*.018,1));}
+    function musicBeat(){
+      if(!enabled||!ensure())return;const p=palette(),phase=phaseForGate(game.gate),mood=game.paused?.025:game.state==='question'?.055:game.state==='super'?.11:game.state==='victory'||game.state==='gameover'?.035:.16;musicBus.gain.setTargetAtTime(mood,audio.currentTime,.12);
+      const sequence=[0,2,4,1,5,3,4,2],degree=p.scale[sequence[musicStep%sequence.length]%p.scale.length],octave=phase===3?2.4:2;tone(hz(p.root,degree)*octave,.19,.11,p.wave,0,1,musicBus);if(musicStep%4===0)tone(p.root*(phase===3?1:.5),.7,.18,'sine',0,.96,musicBus);if(musicStep%8===6)noise(.045,.022,2400,0);musicStep++;
+    }
+    function start(){if(!ensure())return;if(!musicTimer){musicStep=0;musicBeat();musicTimer=setInterval(musicBeat,260);}}
+    function stop(){clearInterval(musicTimer);musicTimer=0;}
+    function unlock(){if(!ensure()||!enabled)return Promise.resolve();const resumed=audio.state==='suspended'?audio.resume():Promise.resolve();return resumed.then(start).catch(()=>{});}
+    function toggle(){enabled=!enabled;if(enabled){updateButton();unlock();scene('resume');}else{if(master)master.gain.setTargetAtTime(0,audio.currentTime,.03);updateButton();}if(enabled&&master)master.gain.setTargetAtTime(.78,audio.currentTime,.03);}
+    function scene(name,subject){const p=palette(subject);if(name==='select'){tone(hz(p.root,12),.09,.07,p.wave);tone(hz(p.root,19),.12,.05,p.wave,.07);}else if(name==='start'){start();chord(p.root,[0,7,12,16],.65,.16,p.wave);noise(.2,.05,1800,.05);}else if(name==='question'){chord(p.root,[12,15,19],.32,.11,'sine');}else if(name==='pause'){tone(p.root*2,.25,.08,'triangle',0,.55);}else if(name==='resume'){tone(p.root*2,.13,.08,'triangle');tone(p.root*3,.18,.07,'triangle',.1);}else if(name==='gate'){chord(p.root,[12,16,19],.45,.13,'triangle');}else if(name==='phase'){noise(.35,.12,420);chord(p.root,[0,7,12,19],.85,.2,p.wave,.08);}else if(name==='victory'){stop();[0,4,7,12,16,19].forEach((n,i)=>tone(hz(p.root,n)*2,.4,.12,'triangle',i*.12));}else if(name==='defeat'){stop();[7,3,0,-5].forEach((n,i)=>tone(hz(p.root,n),.55,.13,'sawtooth',i*.18,.65));}else if(name==='menu'){start();tone(p.root*2,.2,.06,'sine');}}
+    function player(kind){if(kind==='shot'){tone(520,.07,.055,'square',0,1.7);}else if(kind==='dash'){noise(.18,.11,1400);tone(180,.22,.1,'sawtooth',0,3.1);}else if(kind==='hurt'){noise(.2,.17,380);tone(150,.3,.14,'sawtooth',0,.42);}else if(kind==='shield'){chord(180,[0,7,12],.22,.12,'sine');}}
+    function boss(kind){const p=palette();if(kind==='shot'){tone(p.root*4,.14,.08,p.wave,0,.62);}else if(kind==='signature'){chord(p.root,p.scale.slice(0,4),.28,.13,p.wave);noise(.09,.05,1200);}else if(kind==='laser'){tone(p.root*5,.9,.14,'sawtooth',0,.18);noise(.55,.08,1900,.25);}else if(kind==='wall'){tone(p.root*.75,.48,.16,'square',0,.7);noise(.25,.11,520);}else if(kind==='charge'){tone(p.root,.8,.14,'sawtooth',0,5);}else if(kind==='chargeRelease'){noise(.28,.16,720);tone(p.root*5,.35,.14,p.wave,0,.3);}else if(kind==='hit'){noise(.045,.045,2200);}else if(kind==='barrier'){chord(p.root,[12,18],.18,.08,'sine');}}
+    function quiz(kind){const p=palette();if(kind==='correct'){[12,16,19,24].forEach((n,i)=>tone(hz(p.root,n),.28,.1,'sine',i*.07));}else if(kind==='wrong'){tone(190,.22,.12,'square',0,.55);}else if(kind==='failed'){tone(170,.35,.13,'sawtooth',0,.45);tone(110,.45,.12,'sawtooth',.18,.6);}else if(kind==='timeout'){noise(.25,.12,340);tone(120,.5,.14,'square',0,.4);}else if(kind==='tick'){tone(880,.055,.045,'square');}}
+    function superFx(level,stage){const p=palette();if(stage==='launch'){noise(.45,.14,900);chord(p.root,[0,7,12,19,24],level===3?1.1:.8,.25,p.wave,.04);}else{noise(level===3?.85:.55,level===3?.28:.21,level===3?260:420);tone(p.root*(level===3?.5:1),level===3?1.25:.85,.26,'sawtooth',0,.18);chord(p.root,[0,7,12,16,19,24],.9,.28,'triangle');}}
+    updateButton();return{unlock,start,stop,toggle,scene,player,boss,quiz,super:superFx,get enabled(){return enabled;},get state(){return audio?audio.state:'idle';}};
+  })();
+
   function resetGame(){
     Object.assign(player,{x:235,y:390,vx:0,vy:0,r:21,maxHp:CONFIG.playerMaxHp,hp:CONFIG.playerMaxHp,angle:0,lastX:1,lastY:0,walk:0,attackCd:0,dashCd:0,invuln:0,shield:0,attackFlash:0,trail:[]});
     Object.assign(boss,{x:1010,y:370,vx:0,vy:0,r:64,maxHp:CONFIG.bossMaxHp,hp:CONFIG.bossMaxHp,angle:Math.PI,anim:0,hit:0,stun:0,aimTimer:1.2,burstTimer:3.8,laserTimer:7.2,wallTimer:9.5,chargeTimer:6.5,chargeState:null,spiralAngle:0});
-    Object.assign(game,{state:'playing',running:true,paused:false,subject:ui.subjectSelect.value||'ALL',t:0,gate:0,gatePending:false,retryTimer:0,question:null,questionTime:0,questionLimit:0,promptCount:0,answered:false,wrongAttempts:0,questionOutcome:null,messageTimer:0,shake:0,stageBanner:2.3,stageText:'PHASE 1 — EASY: COMBAT PRESSURE +10%',bullets:[],enemy:[],particles:[],rings:[],texts:[],lasers:[],walls:[],superFx:null,questionUsed:new Set()});
-    const profile=bossProfile();ui.bossName.textContent=profile.name;ui.question.hidden=true;ui.end.hidden=true;ui.mission.hidden=true;ui.pauseBtn.hidden=false;setPaused(false);showMessage(`${profile.name}: ${profile.power}. Category: ${game.subject==='ALL'?'All reviewer subjects':game.subject}.`,3);updateHud();
+    Object.assign(game,{state:'playing',running:true,paused:false,subject:ui.subjectSelect.value||'ALL',t:0,gate:0,gatePending:false,retryTimer:0,question:null,questionTime:0,questionLimit:0,promptCount:0,answered:false,wrongAttempts:0,questionOutcome:null,lastTimerSecond:-1,messageTimer:0,shake:0,stageBanner:2.3,stageText:'PHASE 1 — EASY: COMBAT PRESSURE +10%',bullets:[],enemy:[],particles:[],rings:[],texts:[],lasers:[],walls:[],superFx:null,questionUsed:new Set()});
+    const profile=bossProfile();ui.bossName.textContent=profile.name;ui.question.hidden=true;ui.end.hidden=true;ui.mission.hidden=true;ui.pauseBtn.hidden=false;setPaused(false);sound.start();sound.scene('start');showMessage(`${profile.name}: ${profile.power}. Category: ${game.subject==='ALL'?'All reviewer subjects':game.subject}.`,3);updateHud();
   }
 
   function showMessage(text,seconds=2){ui.center.textContent=text;ui.center.classList.add('show');game.messageTimer=seconds;}
   function setPaused(paused){
     game.paused=Boolean(paused);ui.pauseBtn.textContent=game.paused?'RESUME':'PAUSE';ui.pauseBtn.setAttribute('aria-pressed',String(game.paused));ui.pauseBanner.hidden=!game.paused;
   }
-  function togglePause(){if(game.state!=='playing'&&game.state!=='super'&&game.state!=='question')return;setPaused(!game.paused);}
+  function togglePause(){if(game.state!=='playing'&&game.state!=='super'&&game.state!=='question')return;setPaused(!game.paused);sound.scene(game.paused?'pause':'resume');}
   function addParticle(x,y,color,count=10,speed=180){for(let i=0;i<count;i++){const a=Math.random()*TAU,s=rand(speed*.3,speed);game.particles.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:rand(.3,.8),max:.8,size:rand(2,6),color});}}
   function addText(x,y,text,color='#fff',size=20){game.texts.push({x,y,text,color,size,life:1.1,max:1.1,vy:-40});}
   function addRing(x,y,color,r=20,life=.7){game.rings.push({x,y,color,r,life,max:life});}
@@ -5122,7 +5174,7 @@ window.REVIEWER_QUESTION_META = {
     // Soft auto-aim keeps one-button combat approachable for a Grade 4 player.
     player.angle=Math.atan2(dy,dx);
     game.bullets.push({x:player.x+dx*28,y:player.y+dy*28,vx:dx*760,vy:dy*760,r:8,life:1.2,damage:CONFIG.normalDamage});
-    addParticle(player.x+dx*22,player.y+dy*22,'#63ddff',4,90);
+    addParticle(player.x+dx*22,player.y+dy*22,'#63ddff',4,90);sound.player('shot');
   }
 
   function dash(){
@@ -5130,22 +5182,22 @@ window.REVIEWER_QUESTION_META = {
     let mx=(game.keys.has('ArrowRight')||game.keys.has('KeyD')?1:0)-(game.keys.has('ArrowLeft')||game.keys.has('KeyA')?1:0);
     let my=(game.keys.has('ArrowDown')||game.keys.has('KeyS')?1:0)-(game.keys.has('ArrowUp')||game.keys.has('KeyW')?1:0);
     mx+=touchInput.x;my+=touchInput.y;if(Math.hypot(mx,my)<.1){mx=player.lastX;my=player.lastY;}[mx,my]=norm(mx,my);
-    player.vx=mx*940;player.vy=my*940;player.invuln=.42;player.dashCd=1.65;game.shake=5;addParticle(player.x,player.y,'#8f7cff',22,280);addRing(player.x,player.y,'#63ddff',28,.35);
+    player.vx=mx*940;player.vy=my*940;player.invuln=.42;player.dashCd=1.65;game.shake=5;addParticle(player.x,player.y,'#8f7cff',22,280);addRing(player.x,player.y,'#63ddff',28,.35);sound.player('dash');
   }
 
   function damagePlayer(amount,kx=0,ky=0){
     if(game.state!=='playing'||player.invuln>0||game.debugInvincible)return;
-    if(player.shield>0){addRing(player.x,player.y,'#8cecff',30,.35);addParticle(player.x,player.y,'#8cecff',10,130);addText(player.x,player.y-35,'BLOCKED','#d9fbff',16);player.invuln=.1;return;}
-    player.hp=Math.max(0,player.hp-amount);player.invuln=.78;player.vx+=kx;player.vy+=ky;game.shake=11;addParticle(player.x,player.y,'#ff7b88',16,230);addText(player.x,player.y-36,`−${Math.ceil(amount)}`,'#ff9eaa',22);
+    if(player.shield>0){addRing(player.x,player.y,'#8cecff',30,.35);addParticle(player.x,player.y,'#8cecff',10,130);addText(player.x,player.y-35,'BLOCKED','#d9fbff',16);player.invuln=.1;sound.player('shield');return;}
+    player.hp=Math.max(0,player.hp-amount);player.invuln=.78;player.vx+=kx;player.vy+=ky;game.shake=11;addParticle(player.x,player.y,'#ff7b88',16,230);addText(player.x,player.y-36,`−${Math.ceil(amount)}`,'#ff9eaa',22);sound.player('hurt');
     if(player.hp<=0)endGame(false);
   }
 
   function damageBossNormal(amount){
     if(game.state!=='playing')return;
-    if(game.gatePending){addText(boss.x,boss.y-boss.r-20,'KNOWLEDGE BARRIER','#ffd45f',13);boss.hit=.08;return;}
+    if(game.gatePending){addText(boss.x,boss.y-boss.r-20,'KNOWLEDGE BARRIER','#ffd45f',13);boss.hit=.08;sound.boss('barrier');return;}
     const threshold=game.gate<CONFIG.gates?thresholdForGate(game.gate):0;
     const next=Math.max(threshold,boss.hp-amount);const actual=boss.hp-next;boss.hp=next;
-    if(actual>0){boss.hit=.11;addParticle(boss.x,boss.y,'#63ddff',4,100);addText(boss.x,boss.y-boss.r-14,`−${actual}`,'#c8f7ff',15);}
+    if(actual>0){boss.hit=.11;addParticle(boss.x,boss.y,'#63ddff',4,100);addText(boss.x,boss.y-boss.r-14,`−${actual}`,'#c8f7ff',15);sound.boss('hit');}
     if(game.gate<CONFIG.gates&&boss.hp<=threshold+.01){boss.hp=threshold;game.gatePending=true;game.retryTimer=0;openQuestion();}
     if(boss.hp<=0)endGame(true);
   }
@@ -5159,7 +5211,7 @@ window.REVIEWER_QUESTION_META = {
   function openQuestion(forcedQuestion=null){
     if(game.state!=='playing'||!game.gatePending||game.gate>=CONFIG.gates)return;
     if(game.paused)setPaused(false);
-    const diff=difficultyForGate(game.gate),q=forcedQuestion||selectQuestion(diff);game.question=q;game.questionLimit=CONFIG.timer[diff];game.questionTime=game.questionLimit;game.promptCount++;game.answered=false;game.wrongAttempts=0;game.questionOutcome=null;game.state='question';
+    const diff=difficultyForGate(game.gate),q=forcedQuestion||selectQuestion(diff);game.question=q;game.questionLimit=CONFIG.timer[diff];game.questionTime=game.questionLimit;game.promptCount++;game.answered=false;game.wrongAttempts=0;game.questionOutcome=null;game.lastTimerSecond=-1;game.state='question';
     game.enemy.length=0;game.lasers.length=0;game.walls.length=0;
     ui.qGate.textContent=`KNOWLEDGE GATE ${game.gate+1} OF ${CONFIG.gates} • ${q.topic}`;
     const isIdentification=diff==='DIFFICULT';
@@ -5167,7 +5219,7 @@ window.REVIEWER_QUESTION_META = {
     ui.feedback.textContent=isIdentification?'Type the correct answer. Capitalization and punctuation do not matter. You have two attempts.':'Choose the best answer. You may make two incorrect attempts before the correct answer and explanation are revealed.';
     ui.superBtn.hidden=true;ui.superBtn.textContent='UNLEASH SUPER ATTACK';ui.superBtn.dataset.action='super';ui.answers.innerHTML='';ui.answers.hidden=isIdentification;ui.identificationForm.hidden=!isIdentification;ui.identificationInput.value='';ui.identificationInput.disabled=false;ui.identificationInput.className='';ui.identificationSubmit.disabled=false;
     if(!isIdentification)q.options.forEach((opt,i)=>{const b=document.createElement('button');b.className='answer';b.textContent=`${String.fromCharCode(65+i)}. ${opt}`;b.addEventListener('click',()=>answerQuestion(i,b));ui.answers.appendChild(b);});
-    ui.question.hidden=false;updateQuestionTimer();if(isIdentification)requestAnimationFrame(()=>ui.identificationInput.focus());
+    ui.question.hidden=false;updateQuestionTimer();sound.scene('question');if(isIdentification)requestAnimationFrame(()=>ui.identificationInput.focus());
   }
 
   function correctAnswerText(q){return String(q.correctAnswer!=null?q.correctAnswer:q.answerText!=null?q.answerText:q.options[q.correct]);}
@@ -5175,12 +5227,12 @@ window.REVIEWER_QUESTION_META = {
     const q=game.question;game.answered=true;game.questionOutcome='correct';game.questionTime=Math.max(0,game.questionTime);[...ui.answers.children].forEach(b=>b.disabled=true);ui.identificationInput.disabled=true;ui.identificationSubmit.disabled=true;
     const damage=game.gate===CONFIG.gates-1?Math.ceil(boss.hp):superDamageForGate(game.gate);
     ui.feedback.innerHTML=`<strong>Correct!</strong> ${q.explanation}<br><strong>${superNameForGate(game.gate)}</strong> is ready for <strong>−${fmt(damage)} boss HP</strong> and a <strong>15-second shield</strong>.`;
-    ui.superBtn.textContent='UNLEASH SUPER ATTACK';ui.superBtn.dataset.action='super';ui.superBtn.hidden=false;
+    ui.superBtn.textContent='UNLEASH SUPER ATTACK';ui.superBtn.dataset.action='super';ui.superBtn.hidden=false;sound.quiz('correct');
   }
   function completeFailedAnswer(){
     const q=game.question;game.answered=true;game.questionOutcome='failed';[...ui.answers.children].forEach((b,i)=>{b.disabled=true;if(i===q.correct){b.classList.add('correct');b.textContent=`✓ CORRECT ANSWER — ${q.options[i]}`;}});ui.identificationInput.disabled=true;ui.identificationSubmit.disabled=true;
     ui.feedback.innerHTML=`<strong>Two incorrect attempts used.</strong><br><strong>Correct answer: ${correctAnswerText(q)}</strong><br>${q.explanation}<br>No super attack or shield is awarded for this question.`;
-    ui.superBtn.textContent='CONTINUE BATTLE';ui.superBtn.dataset.action='continue';ui.superBtn.hidden=false;
+    ui.superBtn.textContent='CONTINUE BATTLE';ui.superBtn.dataset.action='continue';ui.superBtn.hidden=false;sound.quiz('failed');
   }
   function answerQuestion(index,button){
     if(game.state!=='question'||game.answered)return;const q=game.question;
@@ -5190,7 +5242,7 @@ window.REVIEWER_QUESTION_META = {
       game.wrongAttempts++;
       button.classList.add('wrong');
       if(game.wrongAttempts<2){
-        button.disabled=true;
+        button.disabled=true;sound.quiz('wrong');
         ui.feedback.innerHTML=`<strong>Attempt 1 of 2 was incorrect.</strong> Hint: ${q.hint}<br>The timer continues. Try a different answer.`;
       }else{
         completeFailedAnswer();
@@ -5201,17 +5253,17 @@ window.REVIEWER_QUESTION_META = {
     if(game.state!=='question'||game.answered||difficultyForGate(game.gate)!=='DIFFICULT')return false;const q=game.question,typed=normalizeIdentification(value);if(!typed){ui.feedback.innerHTML='<strong>Type an answer first.</strong> The timer is still running.';ui.identificationInput.focus();return false;}
     if(typed===normalizeIdentification(correctAnswerText(q))){ui.identificationInput.className='correct';completeCorrectAnswer();return true;}
     game.wrongAttempts++;ui.identificationInput.className='wrong';
-    if(game.wrongAttempts<2){ui.feedback.innerHTML=`<strong>Attempt 1 of 2 was incorrect.</strong> Hint: ${q.hint}<br>The timer continues. Edit your answer and try again.`;ui.identificationInput.select();}
+    if(game.wrongAttempts<2){ui.feedback.innerHTML=`<strong>Attempt 1 of 2 was incorrect.</strong> Hint: ${q.hint}<br>The timer continues. Edit your answer and try again.`;ui.identificationInput.select();sound.quiz('wrong');}
     else completeFailedAnswer();
     return false;
   }
 
-  function updateQuestionTimer(){const pct=clamp(game.questionTime/game.questionLimit*100,0,100);ui.timerFill.style.width=`${pct}%`;ui.qTime.textContent=`${Math.ceil(game.questionTime)}s`;ui.timerFill.style.background=pct<25?'linear-gradient(90deg,#ff6e7d,#ff9f57)':'linear-gradient(90deg,#61e6a6,#ffd45f)';}
+  function updateQuestionTimer(){const pct=clamp(game.questionTime/game.questionLimit*100,0,100),seconds=Math.ceil(game.questionTime);ui.timerFill.style.width=`${pct}%`;ui.qTime.textContent=`${seconds}s`;ui.timerFill.style.background=pct<25?'linear-gradient(90deg,#ff6e7d,#ff9f57)':'linear-gradient(90deg,#61e6a6,#ffd45f)';if(seconds>0&&seconds<=5&&seconds!==game.lastTimerSecond){game.lastTimerSecond=seconds;sound.quiz('tick');}}
   function resumeWithoutSuper(message){
     ui.question.hidden=true;game.state='playing';game.question=null;game.answered=false;game.wrongAttempts=0;game.questionOutcome=null;game.retryTimer=CONFIG.retryDelay;boss.stun=.55;player.invuln=Math.max(player.invuln,1.15);showMessage(message,3.2);
   }
   function timeoutQuestion(){
-    if(game.state!=='question'||game.answered)return;resumeWithoutSuper('Time expired — battle resumes. Replacement question in 15 seconds.');bossEnragePulse();
+    if(game.state!=='question'||game.answered)return;sound.quiz('timeout');resumeWithoutSuper('Time expired — battle resumes. Replacement question in 15 seconds.');bossEnragePulse();
   }
   function bossEnragePulse(){const phase=phaseForGate(game.gate);addRing(boss.x,boss.y,'#ff9f57',70,1);addParticle(boss.x,boss.y,'#ff9f57',22,190);boss.aimTimer=scaledInterval(1.0,phase);boss.burstTimer=scaledInterval(2.4,phase);}
   function superNameForGate(i){return i<7?'AZURE CRYSTAL STRIKE':i<14?'THUNDER KNOWLEDGE STORM':'GUARDIAN NOVA';}
@@ -5224,27 +5276,27 @@ window.REVIEWER_QUESTION_META = {
     }
     if(game.questionOutcome!=='correct')return;
     ui.question.hidden=true;const damage=game.gate===CONFIG.gates-1?Math.ceil(boss.hp):superDamageForGate(game.gate);const name=superNameForGate(game.gate);const level=phaseForGate(game.gate);
-    game.state='super';game.superFx={time:0,duration:level===1?2.1:level===2?2.55:3.05,damage,name,level,hit:false};boss.stun=5;player.shield=CONFIG.shieldSeconds;showMessage(`${name}! 15-SECOND SHIELD ACTIVATED`,2.8);addParticle(player.x,player.y,'#63ddff',40,300);addRing(player.x,player.y,'#8f7cff',32,1.1);
+    game.state='super';game.superFx={time:0,duration:level===1?2.1:level===2?2.55:3.05,damage,name,level,hit:false};boss.stun=5;player.shield=CONFIG.shieldSeconds;showMessage(`${name}! 15-SECOND SHIELD ACTIVATED`,2.8);addParticle(player.x,player.y,'#63ddff',40,300);addRing(player.x,player.y,'#8f7cff',32,1.1);sound.super(level,'launch');
   }
 
   function applySuperDamage(){
     const fx=game.superFx;if(!fx||fx.hit)return;fx.hit=true;const nextThreshold=game.gate<CONFIG.gates-1?thresholdForGate(game.gate+1):0;let damage=fx.damage;
     if(game.gate<CONFIG.gates-1) damage=Math.min(damage,Math.max(0,boss.hp-nextThreshold-35));else damage=boss.hp;
-    boss.hp=Math.max(0,boss.hp-damage);boss.hit=.7;game.shake=fx.level===3?24:fx.level===2?18:13;addText(boss.x,boss.y-boss.r-25,`SUPER −${fmt(damage)}`,'#fff08a',fx.level===3?36:30);addParticle(boss.x,boss.y,'#ffd45f',fx.level===3?70:45,fx.level===3?480:360);addRing(boss.x,boss.y,'#fff4a6',80,1.1);
+    boss.hp=Math.max(0,boss.hp-damage);boss.hit=.7;game.shake=fx.level===3?24:fx.level===2?18:13;addText(boss.x,boss.y-boss.r-25,`SUPER −${fmt(damage)}`,'#fff08a',fx.level===3?36:30);addParticle(boss.x,boss.y,'#ffd45f',fx.level===3?70:45,fx.level===3?480:360);addRing(boss.x,boss.y,'#fff4a6',80,1.1);sound.super(fx.level,'impact');
   }
 
   function finishSuper(){
     game.gate++;game.gatePending=false;game.retryTimer=0;game.question=null;game.answered=false;game.wrongAttempts=0;game.questionOutcome=null;game.superFx=null;
     if(boss.hp<=0||game.gate>=CONFIG.gates){endGame(true);return;}
     const oldPhase=phaseForGate(game.gate-1),newPhase=phaseForGate(game.gate);game.state='playing';boss.stun=.8;
-    if(newPhase!==oldPhase){game.stageBanner=2.5;game.stageText=newPhase===2?'PHASE 2 — MEDIUM: COMBAT PRESSURE +10%':'PHASE 3 — HARD: +10% PRESSURE, LONGER BOSS VITALITY';showMessage(game.stageText,2.6);}
-    else showMessage(`Knowledge Gate ${game.gate} cleared — shield active for ${Math.ceil(player.shield)}s.`,2.1);
+    if(newPhase!==oldPhase){game.stageBanner=2.5;game.stageText=newPhase===2?'PHASE 2 — MEDIUM: COMBAT PRESSURE +10%':'PHASE 3 — HARD: +10% PRESSURE, LONGER BOSS VITALITY';showMessage(game.stageText,2.6);sound.scene('phase');}
+    else{showMessage(`Knowledge Gate ${game.gate} cleared — shield active for ${Math.ceil(player.shield)}s.`,2.1);sound.scene('gate');}
   }
 
   function endGame(victory){
     if(game.state==='victory'||game.state==='gameover')return;game.state=victory?'victory':'gameover';game.running=false;setPaused(false);$('shell').classList.remove('game-active');ui.pauseBtn.hidden=true;ui.end.hidden=false;
-    if(victory){ui.endKicker.textContent='BOSS DEFEATED';ui.endTitle.innerHTML='<span>ALL 20 GATES CLEARED</span>KNOWLEDGE REALM RESTORED!';ui.endText.textContent=`${bossProfile().name} was defeated through movement, dodging, small attacks, twenty progressive reviewer challenges, super attacks, and timed shields.`;}
-    else{ui.endKicker.textContent='THE GUARDIAN WAS DEFEATED';ui.endTitle.innerHTML='<span>TRAIN • DODGE • RETURN</span>THE COLOSSUS STILL STANDS';ui.endText.textContent='Use the dash to cross projectile patterns, keep moving during beam attacks, and earn 15-second shields from correct answers.';}
+    if(victory){ui.endKicker.textContent='BOSS DEFEATED';ui.endTitle.innerHTML='<span>ALL 20 GATES CLEARED</span>KNOWLEDGE REALM RESTORED!';ui.endText.textContent=`${bossProfile().name} was defeated through movement, dodging, small attacks, twenty progressive reviewer challenges, super attacks, and timed shields.`;sound.scene('victory');}
+    else{ui.endKicker.textContent='THE GUARDIAN WAS DEFEATED';ui.endTitle.innerHTML='<span>TRAIN • DODGE • RETURN</span>THE COLOSSUS STILL STANDS';ui.endText.textContent='Use the dash to cross projectile patterns, keep moving during beam attacks, and earn 15-second shields from correct answers.';sound.scene('defeat');}
   }
 
   function spawnBossProjectile(projectile){game.enemy.push({...projectile,x:boss.x,y:boss.y});}
@@ -5255,6 +5307,7 @@ window.REVIEWER_QUESTION_META = {
     const speed=scaledSpeed(baseSpeed,phase),damage=scaledDamage(baseDamage,phase);
     for(let i=0;i<count;i++){const a=base+(i-(count-1)/2)*spread;spawnBossProjectile({type:'orb',style:profile.style,color:profile.projectile,vx:Math.cos(a)*speed,vy:Math.sin(a)*speed,r:10,life:5.4,damage});}
     addParticle(boss.x,boss.y,profile.projectile,10,120);
+    sound.boss('shot');
   }
   function fireSpiral(){
     const phase=phaseForGate(game.gate),profile=bossProfile(),speed=scaledSpeed(phase===1?145:phase===2?155:190,phase),damage=scaledDamage(phase===1?4:phase===2?5:8,phase),target=Math.atan2(player.y-boss.y,player.x-boss.x);boss.spiralAngle+=.34;
@@ -5278,25 +5331,28 @@ window.REVIEWER_QUESTION_META = {
     }else{
       const count=scaledCount(phase===1?9:phase===2?12:18,phase);for(let i=0;i<count;i++)shot(boss.spiralAngle+i*TAU/count,1,8);
     }
-    addRing(boss.x,boss.y,profile.accent,50,.6);showMessage(profile.power,1.35);
+    addRing(boss.x,boss.y,profile.accent,50,.6);showMessage(profile.power,1.35);sound.boss('signature');
   }
   function startLaser(){
+    sound.boss('laser');
     const phase=phaseForGate(game.gate),profile=bossProfile(),base=Math.atan2(player.y-boss.y,player.x-boss.x);
     const baseAngular=phase===1?.27:phase===2?.32:.55,baseTelegraph=phase===1?1.5:phase===2?1.65:1.35,active=phase===1?1.0:phase===2?1.05:1.3,width=phase===1?14:phase===2?15:20,baseDamage=phase===1?7:phase===2?7:12;
     const angular=scaledSpeed(baseAngular,phase),telegraph=phase===1?baseTelegraph:baseTelegraph/combatScaleForPhase(phase),damage=scaledDamage(baseDamage,phase);
     game.lasers.push({angle:base-.8,angular,telegraph,active,width,damage,life:0,color:profile.accent,core:profile.core});showMessage('Sweeping beam — keep moving or dash through!',1.6);
   }
   function spawnWall(){
+    if(phaseForGate(game.gate)>=2)sound.boss('wall');
     const phase=phaseForGate(game.gate),profile=bossProfile();if(phase<2)return;const gap=rand(.25,.75),count=scaledCount(phase===2?11:15,phase),gapSize=phase===2?.14:.11,base=Math.atan2(player.y-boss.y,player.x-boss.x),spread=phase===2?1.45:1.75;
     const speed=scaledSpeed(phase===2?185:240,phase),damage=scaledDamage(phase===2?7:10,phase);
     for(let i=0;i<count;i++){const t=i/Math.max(1,count-1);if(Math.abs(t-gap)<gapSize)continue;const a=base+(t-.5)*spread;spawnBossProjectile({type:'wall',style:profile.style,color:profile.core,vx:Math.cos(a)*speed,vy:Math.sin(a)*speed,r:13,life:7.5,damage});}
     showMessage('Boss crystal fan incoming — move through the opening!',1.5);
   }
   function beginCharge(){
+    if(phaseForGate(game.gate)>=2)sound.boss('charge');
     const phase=phaseForGate(game.gate);if(phase<2)return;const baseTelegraph=phase===2?1.25:1.05;boss.chargeState={telegraph:baseTelegraph/combatScaleForPhase(phase),time:0,targetX:player.x,targetY:player.y,active:false};showMessage('Boss charge — dash sideways!',1.2);
   }
   function updateBossCharge(dt){
-    const c=boss.chargeState;if(!c)return;c.time+=dt;if(!c.active&&c.time>=c.telegraph){c.active=true;const phase=phaseForGate(game.gate),[dx,dy]=norm(c.targetX-boss.x,c.targetY-boss.y),speed=scaledSpeed(phase===3?620:480,phase);boss.vx=dx*speed;boss.vy=dy*speed;}
+    const c=boss.chargeState;if(!c)return;c.time+=dt;if(!c.active&&c.time>=c.telegraph){c.active=true;const phase=phaseForGate(game.gate),[dx,dy]=norm(c.targetX-boss.x,c.targetY-boss.y),speed=scaledSpeed(phase===3?620:480,phase);boss.vx=dx*speed;boss.vy=dy*speed;sound.boss('chargeRelease');}
     if(c.active&&c.time>c.telegraph+.58){boss.chargeState=null;boss.vx*=.22;boss.vy*=.22;}
   }
 
@@ -5491,7 +5547,8 @@ window.REVIEWER_QUESTION_META = {
   function loop(now){const dt=Math.min(.033,(now-game.last)/1000);game.last=now;update(dt);draw();requestAnimationFrame(loop);}
   window.addEventListener('keydown',e=>{if(e.target===ui.identificationInput)return;if(e.code==='KeyP'||e.code==='Escape'){e.preventDefault();togglePause();return;}if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code))e.preventDefault();game.keys.add(e.code);if(e.code==='KeyK'||e.code==='ShiftLeft'||e.code==='ShiftRight')dash();});
   window.addEventListener('keyup',e=>game.keys.delete(e.code));
-  $('start-btn').addEventListener('click',()=>{ui.start.hidden=true;$('shell').classList.add('game-active');resetGame();if(window.innerHeight>window.innerWidth)setPaused(true);});$('restart-btn').addEventListener('click',()=>{ui.end.hidden=true;ui.start.hidden=false;$('shell').classList.remove('game-active');ui.pauseBtn.hidden=true;game.state='start';});ui.superBtn.addEventListener('click',unleashSuper);ui.pauseBtn.addEventListener('click',togglePause);
+  $('start-btn').addEventListener('click',()=>{sound.unlock();ui.start.hidden=true;$('shell').classList.add('game-active');resetGame();if(window.innerHeight>window.innerWidth)setPaused(true);});$('restart-btn').addEventListener('click',()=>{ui.end.hidden=true;ui.start.hidden=false;$('shell').classList.remove('game-active');ui.pauseBtn.hidden=true;game.state='start';sound.start();sound.scene('menu');});ui.superBtn.addEventListener('click',unleashSuper);ui.pauseBtn.addEventListener('click',togglePause);ui.soundBtn.addEventListener('click',sound.toggle);
+  window.addEventListener('pointerdown',()=>sound.unlock(),{passive:true});
   ui.identificationForm.addEventListener('submit',e=>{e.preventDefault();answerIdentification(ui.identificationInput.value);});
 
   const touchInput={x:0,y:0},TOUCH_SENSITIVITY=1.45,stick=$('stick'),knob=$('knob'),attackButton=$('attack-btn'),dashButton=$('dash-btn');let stickPointer=null,attackPointer=null,attackInterval=null;
@@ -5510,7 +5567,7 @@ window.REVIEWER_QUESTION_META = {
 
   // Debug and recording surface. It does not alter the normal player experience.
   const debugApi={
-    game,player,boss,CONFIG,QUESTION_META,QUESTION_BANK,resetGame,basicAttack,dash,fireAimed,fireSpiral,startLaser,spawnWall,beginCharge,superDamageForGate,combatScaleForPhase,scaledCount,scaledSpeed,scaledDamage,scaledInterval,
+    game,player,boss,CONFIG,QUESTION_META,QUESTION_BANK,AUDIO_PALETTES,sound,resetGame,basicAttack,dash,fireAimed,fireSpiral,startLaser,spawnWall,beginCharge,superDamageForGate,combatScaleForPhase,scaledCount,scaledSpeed,scaledDamage,scaledInterval,
     setInvincible(v=true){game.debugInvincible=v;},
     setGate(index){game.gate=clamp(index,0,19);game.gatePending=false;game.retryTimer=0;boss.hp=Math.min(boss.hp,thresholdForGate(game.gate)+380);updateHud();},
     nearGate(index=game.gate,amount=35){game.gate=clamp(index,0,19);game.gatePending=false;game.retryTimer=0;boss.hp=thresholdForGate(game.gate)+amount;updateHud();},
