@@ -6263,7 +6263,7 @@ window.REVIEWER_QUESTION_META = {
     debugInvincible:false, demoSpeed:1
   };
   const player={x:235,y:390,vx:0,vy:0,r:21,maxHp:CONFIG.playerMaxHp,hp:CONFIG.playerMaxHp,angle:0,lastX:1,lastY:0,walk:0,attackCd:0,dashCd:0,invuln:0,shield:0,rapidFire:0,damageBoost:0,attackFlash:0,trail:[]};
-  const boss={x:1010,y:370,vx:0,vy:0,r:64,maxHp:CONFIG.bossMaxHp,hp:CONFIG.bossMaxHp,angle:Math.PI,anim:0,hit:0,stun:0,aimTimer:1.2,burstTimer:3.8,laserTimer:7.2,wallTimer:9.5,chargeTimer:6.5,chargeState:null,spiralAngle:0};
+  const boss={x:1010,y:370,vx:0,vy:0,r:64,maxHp:CONFIG.bossMaxHp,hp:CONFIG.bossMaxHp,angle:Math.PI,anim:0,hit:0,stun:0,aimTimer:1.2,burstTimer:3.8,laserTimer:7.2,wallTimer:10,chargeTimer:12,chargeState:null,spiralAngle:0};
 
   const AUDIO_PALETTES=Object.freeze({
     ALL:{root:55,wave:'triangle',scale:[0,3,5,7,10,12]},
@@ -6335,7 +6335,7 @@ window.REVIEWER_QUESTION_META = {
 
   function resetGame(){
     Object.assign(player,{x:235,y:390,vx:0,vy:0,r:21,maxHp:CONFIG.playerMaxHp,hp:CONFIG.playerMaxHp,angle:0,lastX:1,lastY:0,walk:0,attackCd:0,dashCd:0,invuln:0,shield:0,rapidFire:0,damageBoost:0,attackFlash:0,trail:[]});
-    Object.assign(boss,{x:1010,y:370,vx:0,vy:0,r:64,maxHp:CONFIG.bossMaxHp,hp:CONFIG.bossMaxHp,angle:Math.PI,anim:0,hit:0,stun:0,aimTimer:1.2,burstTimer:3.8,laserTimer:7.2,wallTimer:9.5,chargeTimer:6.5,chargeState:null,spiralAngle:0});
+    Object.assign(boss,{x:1010,y:370,vx:0,vy:0,r:64,maxHp:CONFIG.bossMaxHp,hp:CONFIG.bossMaxHp,angle:Math.PI,anim:0,hit:0,stun:0,aimTimer:1.2,burstTimer:3.8,laserTimer:7.2,wallTimer:10,chargeTimer:12,chargeState:null,spiralAngle:0});
     Object.assign(game,{state:'playing',running:true,paused:false,subject:ui.subjectSelect.value||'ALL',t:0,gate:0,gatePending:false,retryTimer:0,question:null,questionTime:0,questionLimit:0,promptCount:0,answered:false,wrongAttempts:0,questionOutcome:null,lastTimerSecond:-1,messageTimer:0,shake:0,stageBanner:2.3,stageText:'PHASE 1 — EASY: COMBAT PRESSURE +20%',bullets:[],enemy:[],particles:[],rings:[],texts:[],lasers:[],walls:[],powerUps:[],powerUpTimer:6,superFx:null,questionUsed:new Set()});
     const profile=bossProfile();ui.bossName.textContent=profile.name;ui.question.hidden=true;ui.end.hidden=true;ui.mission.hidden=true;ui.pauseBtn.hidden=false;setPaused(false);sound.start();sound.scene('start');showMessage(`${profile.name}: ${profile.power}. Category: ${game.subject==='ALL'?'All reviewer subjects':game.subject}.`,3);updateHud();
   }
@@ -6569,18 +6569,18 @@ window.REVIEWER_QUESTION_META = {
     game.lasers.push({angle:base-.8,angular,telegraph,active,width,damage,life:0,color:'#63e6ff',core:'#fff1a6'});showMessage('BEAM OF LIFE — 25 HP. Keep moving!',1.6);
   }
   function spawnWall(){
-    if(phaseForGate(game.gate)>=2)sound.boss('wall');
-    const phase=phaseForGate(game.gate),profile=bossProfile();if(phase<2)return;const count=phase===2?2:3,base=Math.atan2(player.y-boss.y,player.x-boss.x),spread=.34;
-    const speed=scaledSpeed(phase===2?175:215,phase),damage=30;
+    sound.boss('wall');
+    const phase=phaseForGate(game.gate),profile=bossProfile(),count=phase===1?1:phase===2?2:3,base=Math.atan2(player.y-boss.y,player.x-boss.x),spread=.34;
+    const speed=scaledSpeed(phase===1?150:phase===2?175:215,phase),damage=30;
     for(let i=0;i<count;i++){const a=base+(i-(count-1)/2)*spread;spawnBossProjectile({type:'holyBomb',style:'light',color:profile.core,vx:Math.cos(a)*speed,vy:Math.sin(a)*speed,r:20,life:7.5,damage});}
     showMessage('HOLY BOMB — 30 HP. Dodge the golden orbs!',1.5);
   }
   function beginCharge(){
-    if(phaseForGate(game.gate)>=2)sound.boss('charge');
-    const phase=phaseForGate(game.gate);if(phase<2)return;const baseTelegraph=phase===2?1.25:1.05;boss.chargeState={kind:'wind',telegraph:baseTelegraph/combatScaleForPhase(phase),time:0,targetX:player.x,targetY:player.y,active:false};showMessage('WIND BLOW — brace or dash toward the boss!',1.2);
+    sound.boss('charge');
+    const phase=phaseForGate(game.gate),baseTelegraph=phase===1?1.5:phase===2?1.25:1.05;boss.chargeState={kind:'wind',telegraph:baseTelegraph/combatScaleForPhase(phase),time:0,targetX:player.x,targetY:player.y,active:false};showMessage('WIND BLOW — brace or dash toward the boss!',1.2);
   }
   function updateBossCharge(dt){
-    const c=boss.chargeState;if(!c)return;c.time+=dt;if(!c.active&&c.time>=c.telegraph){c.active=true;const phase=phaseForGate(game.gate),[dx,dy]=norm(player.x-boss.x,player.y-boss.y),force=scaledSpeed(phase===3?780:620,phase);player.vx=dx*force;player.vy=dy*force;player.invuln=Math.max(player.invuln,.18);addRing(boss.x,boss.y,'#dffcff',65,1);addRing(boss.x,boss.y,'#fff1a6',90,1.15);addText(player.x,player.y-42,'WIND BLOW','#dffcff',18);sound.boss('chargeRelease');}
+    const c=boss.chargeState;if(!c)return;c.time+=dt;if(!c.active&&c.time>=c.telegraph){c.active=true;const phase=phaseForGate(game.gate),[dx,dy]=norm(player.x-boss.x,player.y-boss.y),force=scaledSpeed(phase===1?480:phase===2?620:780,phase);player.vx=dx*force;player.vy=dy*force;player.invuln=Math.max(player.invuln,.18);addRing(boss.x,boss.y,'#dffcff',65,1);addRing(boss.x,boss.y,'#fff1a6',90,1.15);addText(player.x,player.y-42,'WIND BLOW','#dffcff',18);sound.boss('chargeRelease');}
     if(c.active&&c.time>c.telegraph+.48){boss.chargeState=null;}
   }
 
@@ -6618,8 +6618,8 @@ window.REVIEWER_QUESTION_META = {
       if(boss.aimTimer<=0){fireAimed();boss.aimTimer=scaledInterval(phase===1?1.9:phase===2?1.65:1.15,phase);}
       if(boss.burstTimer<=0){fireSpiral();boss.burstTimer=scaledInterval(phase===1?5.2:phase===2?4.7:3.4,phase);}
       if(boss.laserTimer<=0){startLaser();boss.laserTimer=scaledInterval(phase===1?10.2:phase===2?8.8:6.8,phase);}
-      if(boss.wallTimer<=0){spawnWall();boss.wallTimer=scaledInterval(phase===2?11.5:8.5,phase);}
-      if(boss.chargeTimer<=0){beginCharge();boss.chargeTimer=scaledInterval(phase===2?10.5:7.4,phase);}
+      if(boss.wallTimer<=0){spawnWall();boss.wallTimer=scaledInterval(phase===1?13:phase===2?9:5.8,phase);}
+      if(boss.chargeTimer<=0){beginCharge();boss.chargeTimer=scaledInterval(phase===1?15:phase===2?10:6.3,phase);}
     }
 
     if(dist(player,boss)<player.r+boss.r){const phase=phaseForGate(game.gate),[dx,dy]=norm(player.x-boss.x,player.y-boss.y);damagePlayer(scaledDamage(phase===3?14:phase===2?9:8,phase),dx*300,dy*300);}
