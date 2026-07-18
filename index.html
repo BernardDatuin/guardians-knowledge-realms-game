@@ -6437,7 +6437,7 @@ window.REVIEWER_QUESTION_META = {
   function openQuestion(forcedQuestion=null){
     if(game.state!=='playing'||!game.gatePending||game.gate>=CONFIG.gates)return;
     if(game.paused)setPaused(false);
-    const diff=difficultyForGate(game.gate),q=forcedQuestion||selectQuestion(diff);game.question=q;game.questionLimit=CONFIG.timer[diff];game.questionTime=game.questionLimit;game.promptCount++;game.answered=false;game.wrongAttempts=0;game.questionOutcome=null;game.lastTimerSecond=-1;game.state='question';
+    const diff=difficultyForGate(game.gate),q=forcedQuestion||selectQuestion(diff);if(diff!=='DIFFICULT'){const answerKey=normalizeChoice(correctAnswerText(q));q.options=shuffle(q.options);q.correct=q.options.findIndex(value=>normalizeChoice(value)===answerKey);}game.question=q;game.questionLimit=CONFIG.timer[diff];game.questionTime=game.questionLimit;game.promptCount++;game.answered=false;game.wrongAttempts=0;game.questionOutcome=null;game.lastTimerSecond=-1;game.state='question';
     game.enemy.length=0;game.lasers.length=0;game.walls.length=0;
     ui.qGate.textContent=`KNOWLEDGE GATE ${game.gate+1} OF ${CONFIG.gates} • ${q.topic}`;
     const isIdentification=diff==='DIFFICULT';
@@ -6449,6 +6449,7 @@ window.REVIEWER_QUESTION_META = {
   }
 
   function correctAnswerText(q){return String(q.correctAnswer!=null?q.correctAnswer:q.answerText!=null?q.answerText:q.options[q.correct]);}
+  function matchesIdentification(value,q){const typed=normalizeIdentification(value),answer=normalizeIdentification(correctAnswerText(q));if(!typed)return false;if(typed===answer||answer.split(/\s+(?:or|o)\s+/).includes(typed))return true;const typedDigits=(typed.match(/\d+/g)||[]).join(''),answerDigits=(answer.match(/\d+/g)||[]).join('');if(typedDigits&&typedDigits===answerDigits)return true;const useful=text=>text.split(' ').filter(word=>word.length>2&&!/^(the|and|with|from|into|that|this|ang|mga|isang|para)$/.test(word)),words=useful(typed),accepted=new Set(useful(answer));return words.length>=2&&words.every(word=>accepted.has(word));}
   function completeCorrectAnswer(){
     const q=game.question;game.answered=true;game.questionOutcome='correct';game.questionTime=Math.max(0,game.questionTime);[...ui.answers.children].forEach(b=>b.disabled=true);ui.identificationInput.disabled=true;ui.identificationSubmit.disabled=true;
     const damage=game.gate===CONFIG.gates-1?Math.ceil(boss.hp):superDamageForGate(game.gate);
@@ -6477,7 +6478,7 @@ window.REVIEWER_QUESTION_META = {
   }
   function answerIdentification(value){
     if(game.state!=='question'||game.answered||difficultyForGate(game.gate)!=='DIFFICULT')return false;const q=game.question,typed=normalizeIdentification(value);if(!typed){ui.feedback.innerHTML='<strong>Type an answer first.</strong> The timer is still running.';ui.identificationInput.focus();return false;}
-    if(typed===normalizeIdentification(correctAnswerText(q))){ui.identificationInput.className='correct';completeCorrectAnswer();return true;}
+    if(matchesIdentification(value,q)){ui.identificationInput.className='correct';completeCorrectAnswer();return true;}
     game.wrongAttempts++;ui.identificationInput.className='wrong';
     if(game.wrongAttempts<2){ui.feedback.innerHTML=`<strong>Attempt 1 of 2 was incorrect.</strong> Hint: ${q.hint}<br>The timer continues. Edit your answer and try again.`;ui.identificationInput.select();sound.quiz('wrong');}
     else completeFailedAnswer();
