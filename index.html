@@ -6428,8 +6428,8 @@ window.REVIEWER_QUESTION_META = {
   }
 
   function selectQuestion(diff){
-    const allQuestions=flattenQuestionBank(QUESTION_BANK),scope=game.subject==='ALL'?allQuestions:allQuestions.filter(q=>q.subject===game.subject),historyKey=`${game.subject}|${diff}`;let priorIds=Array.isArray(replayQuestionHistory[historyKey])?replayQuestionHistory[historyKey]:[],prior=new Set(priorIds),choices=scope.filter(q=>q.difficulty===diff&&!game.questionUsed.has(q.id)&&!prior.has(q.id));
-    if(!choices.length){const previousFirst=priorIds[0];priorIds=[];prior=new Set();choices=scope.filter(q=>q.difficulty===diff&&!game.questionUsed.has(q.id)&&q.id!==previousFirst);if(!choices.length)choices=scope.filter(q=>q.difficulty===diff&&!game.questionUsed.has(q.id));}
+    const allQuestions=flattenQuestionBank(QUESTION_BANK),scope=game.subject==='ALL'?allQuestions:allQuestions.filter(q=>q.subject===game.subject),pool=scope.filter(q=>q.difficulty===diff),historyKey=`${game.subject}|${diff}`;let priorIds=Array.isArray(replayQuestionHistory[historyKey])?replayQuestionHistory[historyKey]:[],prior=new Set(priorIds),choices=pool.filter(q=>!game.questionUsed.has(q.id)&&!prior.has(q.id));
+    if(!choices.length){const previousFirst=priorIds[0],previousLast=priorIds[priorIds.length-1];priorIds=[];choices=pool.filter(q=>!game.questionUsed.has(q.id)&&q.id!==previousFirst&&q.id!==previousLast);if(!choices.length){for(const q of pool)game.questionUsed.delete(q.id);choices=pool.filter(q=>q.id!==previousFirst&&q.id!==previousLast);}if(!choices.length)choices=pool;}
     if(!choices.length) throw new Error(`No unused ${diff} reviewer question remains for ${game.subject}.`);
     const q=choices[Math.floor(rng()*choices.length)];game.questionUsed.add(q.id);priorIds.push(q.id);replayQuestionHistory[historyKey]=priorIds;saveQuestionHistory();return q;
   }
